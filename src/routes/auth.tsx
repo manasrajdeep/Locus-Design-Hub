@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { authProvider } from "@/integrations/auth";
 import { Footer } from "@/components/Footer";
 import { toast } from "sonner";
-import { Loader2, Mail, MailCheck } from "lucide-react";
+import { Loader2, Mail, MailCheck, KeyRound } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (s: Record<string, unknown>): { next?: string } => ({
@@ -59,6 +59,10 @@ function AuthPage() {
   const navigate = useNavigate();
   const { next } = Route.useSearch();
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  // Staff accounts sit on addresses that cannot receive mail, so the password
+  // door stays available alongside the link.
+  const [usePassword, setUsePassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -112,11 +116,17 @@ function AuthPage() {
     return () => sub.subscription.unsubscribe();
   }, [navigate, next]);
 
-  const sendLink = async (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) return;
     setLoading(true);
     try {
+      if (usePassword) {
+        const { error } = await authProvider.auth.signInWithPassword(email, password);
+        if (error) throw error;
+        // The session lands through onAuthStateChange, which routes by role.
+        return;
+      }
       const { error } = await authProvider.auth.signInWithMagicLink(email, {
         redirectTo:
           window.location.origin + "/auth" + (next ? `?next=${encodeURIComponent(next)}` : ""),
@@ -124,8 +134,7 @@ function AuthPage() {
       if (error) throw error;
       setSent(true);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not send the sign-in link");
-    } finally {
+      toast.error(err instanceof Error ? err.message : "Sign-in failed");
       setLoading(false);
     }
   };
@@ -149,7 +158,9 @@ function AuthPage() {
           <p className="mt-3 text-sm text-muted-foreground">
             {sent
               ? "Check your inbox — the link signs you straight in."
-              : "Enter your email and we'll send you a link to access your project timeline, documents, and team chat."}
+              : usePassword
+                ? "Sign in with your email and password."
+                : "Enter your email and we'll send you a link to access your project timeline, documents, and team chat."}
           </p>
 
           {sent ? (
@@ -169,7 +180,7 @@ function AuthPage() {
               </p>
             </div>
           ) : (
-            <form onSubmit={sendLink} className="mt-10 space-y-3 text-left">
+            <form onSubmit={submit} className="mt-10 space-y-3 text-left">
               <label htmlFor="email" className="sr-only">
                 Email address
               </label>
@@ -184,6 +195,23 @@ function AuthPage() {
                 placeholder="you@company.com"
                 className="w-full rounded-md border border-input bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-amber-brand focus:outline-none"
               />
+              {usePassword && (
+                <>
+                  <label htmlFor="password" className="sr-only">
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    type="password"
+                    required
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Password"
+                    className="w-full rounded-md border border-input bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-amber-brand focus:outline-none"
+                  />
+                </>
+              )}
               <button
                 type="submit"
                 disabled={loading}
@@ -191,10 +219,19 @@ function AuthPage() {
               >
                 {loading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
+                ) : usePassword ? (
+                  <KeyRound className="h-4 w-4" aria-hidden="true" />
                 ) : (
                   <Mail className="h-4 w-4" aria-hidden="true" />
                 )}
-                <span>Email me a sign-in link</span>
+                <span>{usePassword ? "Sign in" : "Email me a sign-in link"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setUsePassword((v) => !v)}
+                className="w-full pt-1 text-center text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+              >
+                {usePassword ? "Email me a link instead" : "Staff: sign in with a password"}
               </button>
             </form>
           )}

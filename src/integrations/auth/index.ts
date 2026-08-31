@@ -48,6 +48,26 @@ export const authProvider = {
       return error ? { error: new Error(error.message) } : {};
     },
 
+    /**
+     * Password sign-in, for accounts whose mailbox cannot receive a link.
+     *
+     * Staff addresses here are not always real inboxes — the original admin
+     * account is a placeholder on a domain with no mail hosting — and a magic
+     * link to an unreachable mailbox locks the account out permanently. Those
+     * accounts already carry an `email` identity with a password set, so this
+     * is the door that still opens for them.
+     *
+     * Clients should use the link instead: it needs no shared secret and
+     * nothing to reset when they forget it.
+     */
+    signInWithPassword: async (email: string, password: string): Promise<SignInResult> => {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+      return error ? { error: new Error(error.message) } : {};
+    },
+
     signOut: async (): Promise<SignInResult> => {
       const { error } = await supabase.auth.signOut();
       return error ? { error: new Error(error.message) } : {};
