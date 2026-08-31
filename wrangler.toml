@@ -19,5 +19,5 @@ compatibility_flags = ["nodejs_compat"]
 # VITE_SITE_URL must agree with this — src/lib/site.ts derives the canonical
 # tag, Open Graph URLs and the sitemap from them.
 # [[routes]]
-# pattern = "locusdesign.in"
+# pattern = "locusdesign.online"
 # custom_domain = true

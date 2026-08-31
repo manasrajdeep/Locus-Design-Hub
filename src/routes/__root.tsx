@@ -86,6 +86,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Locus Design is a premium construction firm delivering residential, commercial, and design-build projects with architectural rigor and engineered precision.",
       },
       { name: "author", content: "Locus Design" },
+      // Issued for a Search Console property on the previous domain, so it
+      // verifies nothing on locusdesign.online. Replace it with the token from
+      // Search Console once the new domain is added there; an unrecognised
+      // token is ignored rather than harmful, so it is left in place meanwhile.
       { name: "google-site-verification", content: "krFMEbybP2xmCaY1oNdMHhbWy6xjhzjpzEM7gJs1Hm8" },
 
       { property: "og:title", content: "Locus Design — Premium Construction & Design-Build" },

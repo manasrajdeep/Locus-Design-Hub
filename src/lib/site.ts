@@ -9,7 +9,7 @@
  * Set VITE_SITE_URL in .env (and as the SITE_URL repository variable in CI) to
  * the production domain, with scheme and no trailing slash.
  */
-const FALLBACK_SITE_URL = "https://locusdesign.in";
+const FALLBACK_SITE_URL = "https://locusdesign.online";
 
 function resolveSiteUrl(): string {
   const configured =
