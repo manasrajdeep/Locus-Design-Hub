@@ -12,6 +12,9 @@ import {
   ListChecks,
   MessageCircle,
   Trash2,
+  SlidersHorizontal,
+  Plus,
+  Save,
 } from "lucide-react";
 import { MilestonePanel, TimelinePanel, DocumentsPanel, ChatPanel } from "./portal";
 
@@ -37,7 +40,9 @@ function AdminProject() {
   const { id } = Route.useParams();
   const { user } = Route.useRouteContext();
   const [project, setProject] = useState<Project | null>(null);
-  const [tab, setTab] = useState<"milestones" | "timeline" | "documents" | "chat">("milestones");
+  const [tab, setTab] = useState<"details" | "milestones" | "timeline" | "documents" | "chat">(
+    "milestones",
+  );
 
   const load = () => {
     supabase
@@ -69,7 +74,7 @@ function AdminProject() {
       {project.address && <p className="mt-1 text-sm text-muted-foreground">{project.address}</p>}
 
       <div className="mt-6 flex overflow-x-auto gap-1 border-b border-border">
-        {(["milestones", "timeline", "documents", "chat"] as const).map((t) => (
+        {(["details", "milestones", "timeline", "documents", "chat"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -79,7 +84,9 @@ function AdminProject() {
                 : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
-            {t === "milestones" ? (
+            {t === "details" ? (
+              <SlidersHorizontal className="h-4 w-4" />
+            ) : t === "milestones" ? (
               <ListChecks className="h-4 w-4" />
             ) : t === "timeline" ? (
               <Camera className="h-4 w-4" />
@@ -94,11 +101,149 @@ function AdminProject() {
       </div>
 
       <div className="mt-8">
+        {tab === "details" && <AdminDetails project={project} onChange={load} />}
         {tab === "milestones" && <AdminMilestones project={project} actor={user} onChange={load} />}
         {tab === "timeline" && <AdminTimeline projectId={project.id} onChange={load} />}
         {tab === "documents" && <AdminDocuments projectId={project.id} />}
         {tab === "chat" && <ChatPanel projectId={project.id} userId={user.id} />}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Editable project details.
+ *
+ * Provisioning names a project `"<customer> — Project"` and leaves the address
+ * null, and nothing else could change either afterwards — the name, address and
+ * milestone labels were rendered as static text, so a typo at provisioning time
+ * was permanent. The row was always writable (the `projects: staff update`
+ * policy), so this only ever needed the UI.
+ */
+function AdminDetails({ project, onChange }: { project: Project; onChange: () => void }) {
+  const [name, setName] = useState(project.name);
+  const [address, setAddress] = useState(project.address ?? "");
+  const [milestones, setMilestones] = useState<Milestone[]>(project.milestones ?? []);
+  const [busy, setBusy] = useState(false);
+
+  const renameMilestone = (i: number, value: string) =>
+    setMilestones((ms) => ms.map((m, j) => (j === i ? { ...m, name: value } : m)));
+
+  const removeMilestone = (i: number) => setMilestones((ms) => ms.filter((_, j) => j !== i));
+
+  const addMilestone = () =>
+    setMilestones((ms) => [...ms, { name: "", status: "pending" as const }]);
+
+  const save = async () => {
+    const cleaned = milestones
+      .map((m) => ({ ...m, name: m.name.trim() }))
+      .filter((m) => m.name.length > 0);
+
+    if (!name.trim()) return toast.error("Project name cannot be empty");
+    if (cleaned.length === 0) return toast.error("Keep at least one milestone");
+
+    setBusy(true);
+    const { error } = await supabase
+      .from("projects")
+      .update({
+        name: name.trim(),
+        address: address.trim() || null,
+        milestones: cleaned,
+        // Deleting milestones can strand current_milestone past the end, which
+        // would leave the customer's portal pointing at a stage that is gone.
+        current_milestone: Math.min(project.current_milestone, cleaned.length - 1),
+      })
+      .eq("id", project.id);
+    setBusy(false);
+
+    if (error) return toast.error(error.message);
+    onChange();
+    toast.success("Project details saved");
+  };
+
+  const field =
+    "w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-amber-brand focus:outline-none";
+
+  return (
+    <div className="rounded-lg border border-border bg-card p-6">
+      <p className="eyebrow">Project details</p>
+
+      <div className="mt-4 space-y-4">
+        <div>
+          <label htmlFor="project-name" className="text-sm font-medium text-foreground">
+            Name
+          </label>
+          <input
+            id="project-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className={`mt-1.5 ${field}`}
+            placeholder="Chandigarh Residence"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="project-address" className="text-sm font-medium text-foreground">
+            Address
+          </label>
+          <input
+            id="project-address"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            className={`mt-1.5 ${field}`}
+            placeholder="Sector 9, Chandigarh"
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Shown to the customer under the project title. Leave blank to hide it.
+          </p>
+        </div>
+
+        <div>
+          <p className="text-sm font-medium text-foreground">Milestones</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            These are the stages the customer sees on their timeline.
+          </p>
+          <div className="mt-2 space-y-2">
+            {milestones.map((m, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <span className="w-6 shrink-0 text-xs text-muted-foreground">{i + 1}.</span>
+                <input
+                  value={m.name}
+                  onChange={(e) => renameMilestone(i, e.target.value)}
+                  className={field}
+                  placeholder="Stage name"
+                  aria-label={`Milestone ${i + 1} name`}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeMilestone(i)}
+                  disabled={milestones.length <= 1}
+                  aria-label={`Remove milestone ${i + 1}`}
+                  className="shrink-0 rounded-md p-2 text-muted-foreground hover:text-destructive disabled:opacity-40"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={addMilestone}
+            className="mt-2 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <Plus className="h-4 w-4" /> Add milestone
+          </button>
+        </div>
+      </div>
+
+      <button
+        onClick={save}
+        disabled={busy}
+        className="mt-6 inline-flex items-center gap-2 rounded-md bg-amber-brand px-4 py-2.5 text-sm font-medium text-amber-brand-foreground transition hover:opacity-90 disabled:opacity-60"
+      >
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+        Save changes
+      </button>
     </div>
   );
 }

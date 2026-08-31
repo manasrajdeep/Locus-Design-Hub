@@ -103,7 +103,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      // SVG first for crisp rendering at any size; the .ico is the fallback for
+      // browsers that do not take SVG icons. Both are the "L." monogram from the
+      // wordmark — the previous icon was the starter template's.
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+      { rel: "icon", href: "/favicon.ico", sizes: "256x256" },
+      { rel: "apple-touch-icon", href: "/icon.png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {

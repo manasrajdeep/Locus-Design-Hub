@@ -7,7 +7,14 @@ import { toast } from "sonner";
 import { Loader2, Mail, MailCheck, KeyRound } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
-  validateSearch: (s: Record<string, unknown>): { next?: string } => ({
+  validateSearch: (s: Record<string, unknown>): { next?: string; staff?: boolean } => ({
+    // Staff sign in with a password at /auth?staff=1. Clients get the link form
+    // only — a password box on the client page invites them to guess at one
+    // they were never issued, and support questions follow.
+    // The router's search parser coerces `?staff=1` to the number 1, so match on
+    // every shape rather than one — a miss here silently strips the param and
+    // bounces staff back to the client form.
+    staff: s.staff === 1 || s.staff === "1" || s.staff === true || s.staff === "true" || undefined,
     // Same-origin relative path to return to after sign-in (used by the OAuth consent flow).
     next:
       typeof s.next === "string" && s.next.startsWith("/") && !s.next.startsWith("//")
@@ -55,14 +62,38 @@ async function routeAfterLogin(
   navigate({ to: "/pending" });
 }
 
+/**
+ * Turns Supabase's auth errors into something a client can act on.
+ *
+ * The raw strings leak implementation detail — "email rate limit exceeded" is
+ * the project's shared-sender cap of two messages an hour, which reads to a
+ * customer as though they did something wrong. Anything unrecognised is passed
+ * through rather than swallowed, so real faults stay visible.
+ */
+function friendlyAuthError(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes("rate limit") || m.includes("too many requests")) {
+    return "Too many sign-in emails have gone out just now. Please try again in an hour, or ask your project administrator to sign you in.";
+  }
+  if (m.includes("invalid login credentials")) {
+    return "That email and password do not match an account.";
+  }
+  if (m.includes("email address") && m.includes("invalid")) {
+    return "That email address does not look valid — please check it and try again.";
+  }
+  if (m.includes("signups not allowed") || m.includes("signup is disabled")) {
+    return "This address does not have an account yet. Ask your project administrator to add you.";
+  }
+  return message;
+}
+
 function AuthPage() {
   const navigate = useNavigate();
-  const { next } = Route.useSearch();
+  const { next, staff } = Route.useSearch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  // Staff accounts sit on addresses that cannot receive mail, so the password
-  // door stays available alongside the link.
-  const [usePassword, setUsePassword] = useState(false);
+  // Driven by the URL, not a toggle: clients never see the password form.
+  const usePassword = staff === true;
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -76,7 +107,11 @@ function AuthPage() {
     // An expired or already-used link comes back as an error in the fragment.
     if (url?.hash.includes("error")) {
       const reason = new URLSearchParams(url.hash.slice(1)).get("error_description");
-      toast.error(reason ?? "That sign-in link is no longer valid. Request a new one.");
+      toast.error(
+        reason
+          ? friendlyAuthError(reason)
+          : "That sign-in link is no longer valid. Request a new one.",
+      );
       history.replaceState(null, "", url.pathname + url.search);
       setChecking(false);
     }
@@ -134,7 +169,7 @@ function AuthPage() {
       if (error) throw error;
       setSent(true);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Sign-in failed");
+      toast.error(err instanceof Error ? friendlyAuthError(err.message) : "Sign-in failed");
       setLoading(false);
     }
   };
@@ -225,13 +260,6 @@ function AuthPage() {
                   <Mail className="h-4 w-4" aria-hidden="true" />
                 )}
                 <span>{usePassword ? "Sign in" : "Email me a sign-in link"}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setUsePassword((v) => !v)}
-                className="w-full pt-1 text-center text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-              >
-                {usePassword ? "Email me a link instead" : "Staff: sign in with a password"}
               </button>
             </form>
           )}
