@@ -1,4 +1,3 @@
-import { supabase } from "@/integrations/supabase/client";
 import { registerImageVariants, type ImageVariantMap } from "@/lib/image-registry";
 
 export interface HomepageStat {
@@ -261,6 +260,12 @@ const BASE_COLUMNS =
 const UNDEFINED_COLUMN = "42703";
 
 export async function fetchHomepageContent(): Promise<HomepageContent | null> {
+  // Imported here rather than at module scope so the Supabase client — GoTrue,
+  // PostgREST and the realtime/websocket engine, ~56 KiB gzipped — stays out of
+  // the public homepage's initial bundle. It was being modulepreloaded on a
+  // marketing page that renders entirely from server-rendered data, competing
+  // with the critical path for bandwidth on mobile.
+  const { supabase } = await import("@/integrations/supabase/client");
   const read = (columns: string) =>
     supabase.from("homepage_content").select(columns).limit(1).maybeSingle();
 

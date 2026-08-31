@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { hindiPhrases, toHindi } from "@/lib/hindi-dictionary";
 import { setActiveLang } from "@/lib/i18n-format";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 type Lang = "en" | "hi";
@@ -143,6 +142,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     (async () => {
       try {
+        // Deferred import: this provider wraps every page, so a static import
+        // put the Supabase client (auth + PostgREST + the realtime engine,
+        // ~53 KiB gzipped) on the critical path of the public marketing pages,
+        // which never need it. Reading a saved preference can wait for paint.
+        const { supabase } = await import("@/integrations/supabase/client");
         const { data } = await supabase.auth.getUser();
         if (!data.user || cancelled) return;
         const { data: profile } = await supabase
@@ -187,6 +191,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     // Remember the choice for the next sign-in.
     void (async () => {
       try {
+        const { supabase } = await import("@/integrations/supabase/client");
         const { data } = await supabase.auth.getUser();
         if (!data.user) return;
         await supabase.from("profiles").update({ language: next }).eq("id", data.user.id);

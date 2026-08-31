@@ -17,7 +17,6 @@ import {
 import { useEffect, useState } from "react";
 import { fetchHomepageContent, mergeSections, type HomepageContent } from "@/lib/homepage";
 import { SITE_URL, absoluteUrl } from "@/lib/site";
-import { supabase } from "@/integrations/supabase/client";
 import { Footer } from "@/components/Footer";
 import { ThemeToggle } from "@/components/ThemeProvider";
 import { LanguageToggle, useLanguage } from "@/components/LanguageProvider";
@@ -135,9 +134,25 @@ const principleIconMap: Record<string, React.ComponentType<{ className?: string 
 function useSession() {
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSignedIn(!!data.session));
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => setSignedIn(!!session));
-    return () => sub.subscription.unsubscribe();
+    // Deferred so the auth client loads after paint instead of blocking it; the
+    // header renders its signed-out state first either way.
+    let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
+    void (async () => {
+      const { supabase } = await import("@/integrations/supabase/client");
+      if (cancelled) return;
+      const { data } = await supabase.auth.getSession();
+      if (cancelled) return;
+      setSignedIn(!!data.session);
+      const { data: sub } = supabase.auth.onAuthStateChange((_e, session) =>
+        setSignedIn(!!session),
+      );
+      unsubscribe = () => sub.subscription.unsubscribe();
+    })();
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
   }, []);
   return signedIn;
 }
@@ -581,6 +596,7 @@ function ContactForm() {
     if (m.length < 1 || m.length > 2000)
       return toast.error("Message is required (max 2000 characters).");
     setSending(true);
+    const { supabase } = await import("@/integrations/supabase/client");
     const { error } = await supabase
       .from("contact_messages")
       .insert({ name: n, email: em, message: m });
