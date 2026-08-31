@@ -21,14 +21,15 @@ export const SECURITY_HEADERS: Record<string, string> = {
   "Permissions-Policy": "camera=(), microphone=(), geolocation=(), interest-cohort=()",
   // 2 years + preload. Safe only because the origin is HTTPS-only.
   "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
-  // Report-only first. The app inlines styles and pulls Google Fonts, and a
-  // wrong blocking policy takes the site down — promote this to
-  // `Content-Security-Policy` once the reports come back clean.
+  // Report-only first. The app still inlines styles, so a wrong blocking policy
+  // takes the site down — promote this to `Content-Security-Policy` once the
+  // reports come back clean. Fonts are self-hosted, so no third-party font or
+  // style origin needs allowing any more.
   "Content-Security-Policy-Report-Only": [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline'",
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src 'self' https://fonts.gstatic.com",
+    "style-src 'self' 'unsafe-inline'",
+    "font-src 'self'",
     "img-src 'self' data: blob: https:",
     "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.ingest.sentry.io",
     "frame-ancestors 'none'",

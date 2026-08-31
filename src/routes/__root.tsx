@@ -109,11 +109,26 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
       { rel: "icon", href: "/favicon.ico", sizes: "256x256" },
       { rel: "apple-touch-icon", href: "/icon.png" },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      // Fonts are self-hosted (public/fonts, declared in src/styles.css).
+      // Loading them from Google cost ~1s of render-blocking on simulated
+      // mobile: a stylesheet request to one third-party origin, which then
+      // pointed at font files on a second. Both are gone, so the faces are
+      // same-origin and preloadable, and the CSP no longer has to allow either
+      // host. Only the Latin subsets are preloaded — latin-ext loads on demand,
+      // and Devanagari was never covered by these families anyway.
       {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap",
+        rel: "preload",
+        as: "font",
+        type: "font/woff2",
+        href: "/fonts/fraunces-latin.woff2",
+        crossOrigin: "anonymous",
+      },
+      {
+        rel: "preload",
+        as: "font",
+        type: "font/woff2",
+        href: "/fonts/inter-latin.woff2",
+        crossOrigin: "anonymous",
       },
     ],
   }),
