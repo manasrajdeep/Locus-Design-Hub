@@ -1,0 +1,23 @@
+# Cloudflare Worker identity.
+#
+# The build generates .output/server/wrangler.json (nitro, cloudflare-module
+# preset) and reads `name`, `compatibility_date` and `compatibility_flags` from
+# here. Without this file nitro auto-generates a name from the package — which
+# is the generic starter-template name, not something you want in the Cloudflare
+# dashboard or as the *.workers.dev subdomain.
+#
+# `main` and `[assets]` are deliberately absent: nitro fills those in and warns
+# that it is overriding them if they are set here.
+#
+# Deploy the built output, not this directory:
+#   bun run build && cd .output && npx wrangler deploy
+name = "locus-design-hub"
+compatibility_date = "2026-08-30"
+compatibility_flags = ["nodejs_compat"]
+
+# Bind the production origin once DNS points at Cloudflare. SITE_URL and
+# VITE_SITE_URL must agree with this — src/lib/site.ts derives the canonical
+# tag, Open Graph URLs and the sitemap from them.
+# [[routes]]
+# pattern = "locusdesign.in"
+# custom_domain = true

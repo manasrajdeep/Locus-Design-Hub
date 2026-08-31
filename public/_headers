@@ -1,0 +1,26 @@
+# Cloudflare static-asset headers. Nitro appends its own hashed-asset caching
+# rule to this file at build time.
+#
+# This app serves client contracts, invoices and private project chat, so the
+# defaults below are deliberately strict.
+
+/*
+  # Clickjacking: nothing here is meant to be framed.
+  X-Frame-Options: DENY
+  # Stop MIME sniffing turning an upload into an executable response.
+  X-Content-Type-Options: nosniff
+  # Don't leak portal URLs (which contain project ids) to third parties.
+  Referrer-Policy: strict-origin-when-cross-origin
+  # No feature here needs these.
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()
+  # 2 years + preload. Only safe once the domain is HTTPS-only — it is, on
+  # Cloudflare — and it applies to subdomains too.
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+  # Report-only to start: the app inlines styles and loads Google Fonts, and a
+  # blocking policy that is wrong takes the site down. Watch the reports, then
+  # switch the header name to Content-Security-Policy once it is clean.
+  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.ingest.sentry.io; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+
+# Uploaded and bundled media: long-lived, content-addressed by filename.
+/media/*
+  Cache-Control: public, max-age=31536000, immutable

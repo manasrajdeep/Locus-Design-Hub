@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "sdk_version": "0.26.2",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://kbvttehtrhdujtwwhzrf.supabase.co/auth/v1",
+    "accepted_audiences": ["authenticated"]
+  },
+  "mcp": {
+    "server": {
+      "name": "locus-design-hub",
+      "version": "0.1.0",
+      "title": "Locus Design Hub"
+    },
+    "tools": [
+      {
+        "name": "list_projects",
+        "title": "List projects",
+        "description": "List the Locus Design projects visible to the signed-in user, with name, address and current milestone index.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_project",
+        "title": "Get project detail",
+        "description": "Get one project's milestones, recent activity log, documents and progress photos. Use list_projects first to find the project id.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "project_id": {
+              "type": "string",
+              "description": "The project id (uuid) from list_projects."
+            }
+          },
+          "required": ["project_id"]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_project_messages",
+        "title": "List project messages",
+        "description": "Read the most recent chat messages on a project thread, newest last.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "project_id": {
+              "type": "string",
+              "description": "The project id (uuid) from list_projects."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991,
+              "description": "How many recent messages to return (defaults to 30, capped at 100)."
+            }
+          },
+          "required": ["project_id", "limit"]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "send_project_message",
+        "title": "Send project message",
+        "description": "Post a chat message to a project thread as the signed-in user.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "project_id": {
+              "type": "string",
+              "description": "The project id (uuid) from list_projects."
+            },
+            "body": {
+              "type": "string",
+              "description": "Message text. Keep it under 2000 characters."
+            }
+          },
+          "required": ["project_id", "body"]
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
