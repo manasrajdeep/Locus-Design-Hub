@@ -1,0 +1,79 @@
+name: Deploy
+
+# Pushes to main build the Worker and publish it to Cloudflare.
+#
+# The build INLINES configuration rather than reading it at runtime: Vite
+# replaces every VITE_* reference at build time, and src/lib/site.ts bakes the
+# canonical origin into the bundle. A build without these set therefore produces
+# a Worker that has no Supabase project and the wrong canonical URL — and it
+# fails silently, serving an empty homepage. They are required, not optional.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and publish to Cloudflare
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    env:
+      # Public config — shipped to the browser, so these are repository
+      # variables/secrets only to keep the repo free of environment specifics.
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+      VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+      # Canonical origin: drives the canonical tag, og:url, JSON-LD, sitemap and
+      # robots. Must match the custom domain bound to the Worker.
+      VITE_SITE_URL: ${{ vars.SITE_URL }}
+      SITE_URL: ${{ vars.SITE_URL }}
+      # Browser error tracking. Blank disables reporting entirely.
+      VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Fail fast on missing build-time config
+        run: |
+          missing=
+          for v in VITE_SUPABASE_URL VITE_SUPABASE_PUBLISHABLE_KEY VITE_SITE_URL; do
+            [ -n "${!v}" ] || missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing build-time configuration:$missing"
+            echo "These are inlined at build time; deploying without them ships a broken Worker."
+            exit 1
+          fi
+
+      - name: Typecheck
+        run: bunx tsc --noEmit
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Build
+        run: bun run build
+
+      - name: Publish
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # nitro writes .output/server/wrangler.json; deploy from there so the
+          # generated asset binding and compatibility flags are the ones used.
+          workingDirectory: .output
+          command: deploy
