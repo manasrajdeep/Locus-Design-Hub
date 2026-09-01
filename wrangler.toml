@@ -15,9 +15,14 @@ name = "locus-design-hub"
 compatibility_date = "2026-08-30"
 compatibility_flags = ["nodejs_compat"]
 
-# Bind the production origin once DNS points at Cloudflare. SITE_URL and
-# VITE_SITE_URL must agree with this — src/lib/site.ts derives the canonical
-# tag, Open Graph URLs and the sitemap from them.
-# [[routes]]
-# pattern = "locusdesign.online"
-# custom_domain = true
+# Serve on the domain only. Leaving workers.dev enabled makes the first deploy
+# demand a *.workers.dev subdomain, and it would publish a second, indexable
+# copy of the site on a URL the canonical tag does not point at.
+workers_dev = false
+
+# SITE_URL and VITE_SITE_URL must agree with this — src/lib/site.ts derives the
+# canonical tag, Open Graph URLs and the sitemap from them. Cloudflare creates
+# the DNS record for a custom_domain route itself.
+[[routes]]
+pattern = "locusdesign.online"
+custom_domain = true
