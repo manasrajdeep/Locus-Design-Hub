@@ -13,6 +13,7 @@ import {
   Trash2,
   KeyRound,
   Copy,
+  Globe,
 } from "lucide-react";
 import { provisionClientFn, resetClientPasswordFn } from "@/lib/provision-client.functions";
 import { toast } from "sonner";
@@ -200,9 +201,22 @@ export function AdminDashboard({ userId }: { userId: string; projectHrefPrefix?:
 
   return (
     <div className="mx-auto max-w-6xl px-4 md:px-6 py-8 space-y-12">
-      <div>
-        <p className="eyebrow">Admin</p>
-        <h1 className="mt-2 text-3xl md:text-4xl text-foreground">Manage clients</h1>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="eyebrow">Admin</p>
+          <h1 className="mt-2 text-3xl md:text-4xl text-foreground">Manage clients</h1>
+        </div>
+        {/*
+          The homepage editor had no entry point anywhere in the interface — the
+          only way in was typing /admin/homepage into the address bar, which is
+          not something a site owner can be expected to know.
+        */}
+        <Link
+          to="/admin/homepage"
+          className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-foreground transition hover:bg-muted"
+        >
+          <Globe className="h-4 w-4" /> Edit website
+        </Link>
       </div>
 
       {/* Top: Customer dropdown */}
