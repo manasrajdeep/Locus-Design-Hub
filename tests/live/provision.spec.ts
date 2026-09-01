@@ -43,9 +43,9 @@ test("admin provisions a client, and that client can sign in", async ({ page }) 
   // The project joins the client picker. That is a <select>, so assert on the
   // option's presence rather than its visibility — Playwright counts options
   // inside a closed select as hidden.
-  await expect(
-    page.locator("option", { hasText: "Gomti Nagar Villa" }).first(),
-  ).toHaveCount(1, { timeout: 20_000 });
+  await expect(page.locator("option", { hasText: "Gomti Nagar Villa" }).first()).toHaveCount(1, {
+    timeout: 20_000,
+  });
 });
 
 test("the provisioned client can sign in and sees only their project", async ({ page }) => {
