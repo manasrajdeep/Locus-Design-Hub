@@ -43,6 +43,15 @@ const CACHEABLE_PATHS = new Set(["/", "/robots.txt", "/sitemap.xml"]);
  * one client's page to another is the worst failure this app has — so any
  * request carrying credentials is excluded outright.
  */
+/**
+ * The Workers runtime adds a `default` cache that the standard DOM
+ * `CacheStorage` type does not declare, so it is narrowed here rather than
+ * pulling in @cloudflare/workers-types for one property.
+ */
+function edgeCache(): Cache | undefined {
+  return (caches as CacheStorage & { default?: Cache }).default;
+}
+
 function isCacheable(request: Request): boolean {
   if (request.method !== "GET" && request.method !== "HEAD") return false;
   if (request.headers.get("authorization") || request.headers.get("cookie")) return false;
@@ -107,10 +116,39 @@ function isH3SwallowedErrorBody(body: string): boolean {
 const handler = {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      // Cache Rules on the zone do not reach this response: on a Workers custom
+      // domain the Worker *is* the origin, so its HTML never passes through the
+      // CDN cache — /media and /assets get `cf-cache-status: HIT`, the rendered
+      // pages get no such header at all. Caching therefore has to happen here.
+      const cache = edgeCache();
+      const cacheable = !!cache && isCacheable(request);
+      const cacheKey = new Request(new URL(request.url).toString(), { method: "GET" });
+
+      if (cacheable) {
+        const hit = await cache!.match(cacheKey);
+        if (hit) return hit;
+      }
+
       const serverEntry = await getServerEntry();
       const response = await serverEntry.fetch(request, env, ctx);
       const normalized = await normalizeCatastrophicSsrResponse(response);
-      return withSecurityHeaders(withPublicCache(request, normalized));
+      const final = withSecurityHeaders(withPublicCache(request, normalized));
+
+      if (cacheable && final.status === 200) {
+        // Buffered on purpose. Handing `cache.put` the streamed SSR body stored
+        // nothing retrievable — every subsequent request still missed — because
+        // the stream is consumed by the response the visitor is already
+        // receiving. These pages are ~66 KB, so reading them into memory first
+        // costs nothing and gives the cache a complete body to keep.
+        const body = await final.arrayBuffer();
+        const cached = new Response(body, { status: 200, headers: final.headers });
+        const ctxLike = ctx as { waitUntil?: (p: Promise<unknown>) => void } | undefined;
+        const stored = cache!.put(cacheKey, cached.clone());
+        if (ctxLike?.waitUntil) ctxLike.waitUntil(stored);
+        else await stored;
+        return cached;
+      }
+      return final;
     } catch (error) {
       // Caught here, so it never propagates to Sentry's own worker handler.
       Sentry.captureException(error);
