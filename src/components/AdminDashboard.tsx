@@ -2,7 +2,19 @@ import { formatDate, useLangTick } from "@/lib/i18n-format";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, UserPlus, ChevronRight, Check, X, Users, Mail, Trash2 } from "lucide-react";
+import {
+  Loader2,
+  UserPlus,
+  ChevronRight,
+  Check,
+  X,
+  Users,
+  Mail,
+  Trash2,
+  KeyRound,
+  Copy,
+} from "lucide-react";
+import { provisionClientFn } from "@/lib/provision-client.functions";
 import { toast } from "sonner";
 
 type Project = { id: string; name: string; address: string | null; customer_id: string };
@@ -31,6 +43,10 @@ export function AdminDashboard({ userId }: { userId: string; projectHrefPrefix?:
   const [requests, setRequests] = useState<AccessRequest[] | null>(null);
   const [messages, setMessages] = useState<ContactMessage[] | null>(null);
   const [busy, setBusy] = useState(false);
+  // Direct client provisioning — see the note on the form below.
+  const [nc, setNc] = useState({ email: "", fullName: "", projectName: "", password: "" });
+  const [creating, setCreating] = useState(false);
+  const [created, setCreated] = useState<{ email: string; password: string } | null>(null);
 
   const loadProjects = async () => {
     const { data } = await supabase
@@ -91,6 +107,46 @@ export function AdminDashboard({ userId }: { userId: string; projectHrefPrefix?:
 
   const activeProjects = projects ?? [];
   const selectedProject = activeProjects.find((p) => p.customer_id === selectedCustomerId);
+
+  /**
+   * Generates a password that is readable over the phone: no ambiguous
+   * characters, grouped so it can be dictated without spelling every letter.
+   */
+  const suggestPassword = () => {
+    const alphabet = "abcdefghjkmnpqrstuvwxyz";
+    const digits = "23456789";
+    const pick = (set: string, n: number) =>
+      Array.from({ length: n }, () => set[Math.floor(Math.random() * set.length)]).join("");
+    setNc((v) => ({
+      ...v,
+      password: `${pick(alphabet, 4)}-${pick(alphabet, 4)}-${pick(digits, 3)}`,
+    }));
+  };
+
+  const createClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreating(true);
+    try {
+      const res = await provisionClientFn({
+        data: {
+          email: nc.email,
+          password: nc.password,
+          fullName: nc.fullName || undefined,
+          projectName: nc.projectName || undefined,
+        },
+      });
+      // Shown once, deliberately: the password is not recoverable afterwards,
+      // so staff need it in front of them while they pass it on.
+      setCreated({ email: res.email, password: nc.password });
+      setNc({ email: "", fullName: "", projectName: "", password: "" });
+      await loadProjects();
+      toast.success("Client account created");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not create the account");
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const provision = async (req: AccessRequest) => {
     setBusy(true);
@@ -237,6 +293,111 @@ export function AdminDashboard({ userId }: { userId: string; projectHrefPrefix?:
               </li>
             ))}
           </ul>
+        )}
+      </section>
+
+      {/* Create a client directly, without email */}
+      <section>
+        <h2 className="mb-1 flex items-center gap-2 text-sm font-medium uppercase tracking-wider text-foreground">
+          <KeyRound className="h-4 w-4" /> Add a client
+        </h2>
+        <p className="mb-4 text-xs text-muted-foreground">
+          Creates the account with a password you choose and hand over yourself — no email is sent,
+          so this is not affected by the sign-in email limit. They sign in at{" "}
+          <span className="font-mono">/auth?staff=1</span> with these details.
+        </p>
+
+        {created ? (
+          <div className="rounded-md border border-amber-brand bg-card p-5">
+            <p className="text-sm font-medium text-foreground">
+              Account ready — copy these now, the password is not shown again.
+            </p>
+            <dl className="mt-3 space-y-1 font-mono text-sm">
+              <div className="flex gap-2">
+                <dt className="text-muted-foreground">email</dt>
+                <dd className="text-foreground">{created.email}</dd>
+              </div>
+              <div className="flex gap-2">
+                <dt className="text-muted-foreground">pass</dt>
+                <dd className="text-foreground">{created.password}</dd>
+              </div>
+            </dl>
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => {
+                  void navigator.clipboard.writeText(
+                    `Locus Design portal\nhttps://locusdesign.online/auth?staff=1\nEmail: ${created.email}\nPassword: ${created.password}`,
+                  );
+                  toast.success("Copied — paste it to your client");
+                }}
+                className="inline-flex items-center gap-2 rounded-md bg-amber-brand px-3 py-2 text-xs font-medium text-amber-brand-foreground"
+              >
+                <Copy className="h-3.5 w-3.5" /> Copy sign-in details
+              </button>
+              <button
+                onClick={() => setCreated(null)}
+                className="rounded-md border border-input px-3 py-2 text-xs text-foreground hover:bg-muted"
+              >
+                Add another
+              </button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={createClient} className="grid gap-3 sm:grid-cols-2">
+            <input
+              type="email"
+              required
+              value={nc.email}
+              onChange={(e) => setNc({ ...nc, email: e.target.value })}
+              placeholder="client@email.com"
+              aria-label="Client email"
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-amber-brand focus:outline-none"
+            />
+            <input
+              value={nc.fullName}
+              onChange={(e) => setNc({ ...nc, fullName: e.target.value })}
+              placeholder="Full name (optional)"
+              aria-label="Client full name"
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-amber-brand focus:outline-none"
+            />
+            <input
+              value={nc.projectName}
+              onChange={(e) => setNc({ ...nc, projectName: e.target.value })}
+              placeholder="Project name (optional)"
+              aria-label="Project name"
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-amber-brand focus:outline-none"
+            />
+            <div className="flex gap-2">
+              <input
+                required
+                minLength={10}
+                value={nc.password}
+                onChange={(e) => setNc({ ...nc, password: e.target.value })}
+                placeholder="Password (min 10)"
+                aria-label="Client password"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm text-foreground placeholder:font-sans placeholder:text-muted-foreground focus:border-amber-brand focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={suggestPassword}
+                className="shrink-0 rounded-md border border-input px-3 text-xs text-muted-foreground hover:text-foreground"
+              >
+                Generate
+              </button>
+            </div>
+            <button
+              type="submit"
+              disabled={creating}
+              className="inline-flex items-center justify-center gap-2 rounded-md bg-amber-brand px-4 py-2.5 text-sm font-medium text-amber-brand-foreground transition hover:opacity-90 disabled:opacity-60 sm:col-span-2"
+            >
+              {creating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <UserPlus className="h-4 w-4" />
+              )}
+              Create client account
+            </button>
+          </form>
         )}
       </section>
 

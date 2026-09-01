@@ -40,6 +40,16 @@ async function routeAfterLogin(
   fullName: string | null,
   navigate: (opts: { to: string }) => void,
 ) {
+  // Staff first. This only asked whether the signed-in user owned a project,
+  // so an admin — who owns none — was treated as a customer waiting to be set
+  // up: sent to /pending, and an access request was filed in their name. The
+  // dashboard was unreachable through the normal sign-in flow.
+  const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+  if (roles?.some((r) => r.role === "admin" || r.role === "superadmin")) {
+    navigate({ to: "/admin" });
+    return;
+  }
+
   const { data: project } = await supabase
     .from("projects")
     .select("id")

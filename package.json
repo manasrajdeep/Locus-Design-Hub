@@ -15,6 +15,7 @@
     "format": "prettier --write .",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "test:live": "playwright test --config playwright.live.config.ts",
     "images:manifest": "bun scripts/build-image-manifest.ts",
     "test:cwv": "node scripts/cwv-check.mjs"
   },
