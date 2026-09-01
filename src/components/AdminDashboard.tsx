@@ -2,11 +2,18 @@ import { formatDate, useLangTick } from "@/lib/i18n-format";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, UserPlus, ChevronRight, Check, X, Users } from "lucide-react";
+import { Loader2, UserPlus, ChevronRight, Check, X, Users, Mail, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 type Project = { id: string; name: string; address: string | null; customer_id: string };
 type Customer = { id: string; email: string; full_name: string | null };
+type ContactMessage = {
+  id: string;
+  name: string;
+  email: string;
+  message: string;
+  created_at: string;
+};
 type AccessRequest = {
   id: string;
   user_id: string;
@@ -22,6 +29,7 @@ export function AdminDashboard({ userId }: { userId: string; projectHrefPrefix?:
   const [customersById, setCustomersById] = useState<Record<string, Customer>>({});
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
   const [requests, setRequests] = useState<AccessRequest[] | null>(null);
+  const [messages, setMessages] = useState<ContactMessage[] | null>(null);
   const [busy, setBusy] = useState(false);
 
   const loadProjects = async () => {
@@ -53,9 +61,32 @@ export function AdminDashboard({ userId }: { userId: string; projectHrefPrefix?:
     setRequests((data ?? []) as AccessRequest[]);
   };
 
+  /**
+   * Website enquiries.
+   *
+   * The public contact form writes straight to `contact_messages` and nothing
+   * read it — no screen, no notification — so an enquiry sat in the database
+   * unseen. Staff-only by policy; `anon` may insert but never select.
+   */
+  const loadMessages = async () => {
+    const { data } = await supabase
+      .from("contact_messages")
+      .select("id, name, email, message, created_at")
+      .order("created_at", { ascending: false })
+      .limit(100);
+    setMessages((data ?? []) as ContactMessage[]);
+  };
+
+  const deleteMessage = async (id: string) => {
+    const { error } = await supabase.from("contact_messages").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    setMessages((ms) => (ms ?? []).filter((m) => m.id !== id));
+  };
+
   useEffect(() => {
     loadProjects();
     loadRequests();
+    loadMessages();
   }, []);
 
   const activeProjects = projects ?? [];
@@ -203,6 +234,58 @@ export function AdminDashboard({ userId }: { userId: string; projectHrefPrefix?:
                     <X className="h-3.5 w-3.5" /> Reject
                   </button>
                 </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* Website enquiries from the public contact form */}
+      <section>
+        <h2 className="mb-4 flex items-center gap-2 text-sm font-medium uppercase tracking-wider text-foreground">
+          <Mail className="h-4 w-4" /> Website enquiries
+          {messages && messages.length > 0 && (
+            <span className="rounded-full bg-amber-brand px-2 py-0.5 text-xs text-amber-brand-foreground">
+              {messages.length}
+            </span>
+          )}
+        </h2>
+        {messages === null ? (
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        ) : messages.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No enquiries yet. Messages sent through the contact form on the homepage appear here.
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {messages.map((m) => (
+              <li key={m.id} className="rounded-md border border-border bg-card p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-foreground">{m.name}</div>
+                    <a
+                      href={`mailto:${m.email}?subject=${encodeURIComponent("Re: your enquiry — Locus Design")}`}
+                      className="text-xs text-amber-brand hover:underline"
+                    >
+                      {m.email}
+                    </a>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <span className="text-xs text-muted-foreground">
+                      {formatDate(m.created_at)}
+                    </span>
+                    <button
+                      onClick={() => deleteMessage(m.id)}
+                      aria-label={`Delete enquiry from ${m.name}`}
+                      className="rounded p-1 text-muted-foreground transition hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+                <p className="mt-3 whitespace-pre-wrap text-sm text-muted-foreground">
+                  {m.message}
+                </p>
               </li>
             ))}
           </ul>
