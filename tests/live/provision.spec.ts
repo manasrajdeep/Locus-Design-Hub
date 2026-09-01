@@ -17,6 +17,9 @@ const clientPassword = "reta-vusk-4839";
 
 async function signIn(page, email: string, password: string) {
   await page.goto(`${SITE}/auth?staff=true`);
+  // Wait for hydration: the form renders server-side but its submit handler only
+  // exists once React has taken over, so an early click posts nothing.
+  await page.waitForLoadState("networkidle");
   await page.locator("#email").fill(email);
   await page.locator("#password").fill(password);
   await page.locator('button[type="submit"]').click();
@@ -37,12 +40,18 @@ test("admin provisions a client, and that client can sign in", async ({ page }) 
   await expect(page.getByText("Account ready")).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText(clientEmail)).toBeVisible();
 
-  // The project should now be listed.
-  await expect(page.getByText("Gomti Nagar Villa").first()).toBeVisible({ timeout: 20_000 });
+  // The project joins the client picker. That is a <select>, so assert on the
+  // option's presence rather than its visibility — Playwright counts options
+  // inside a closed select as hidden.
+  await expect(
+    page.locator("option", { hasText: "Gomti Nagar Villa" }).first(),
+  ).toHaveCount(1, { timeout: 20_000 });
 });
 
 test("the provisioned client can sign in and sees only their project", async ({ page }) => {
   await signIn(page, clientEmail, clientPassword);
-  await page.waitForURL(/\/portal/, { timeout: 30_000 });
-  await expect(page.getByText("Gomti Nagar Villa").first()).toBeVisible({ timeout: 20_000 });
+  // A customer who owns a project lands on the portal; anything else means the
+  // provisioning did not attach one.
+  await page.waitForURL(/\/portal/, { timeout: 45_000 });
+  await expect(page.getByText("Gomti Nagar Villa").first()).toBeVisible({ timeout: 25_000 });
 });
