@@ -82,3 +82,38 @@ export async function provisionClient(input: ProvisionInput): Promise<ProvisionR
 
   return { userId, email, projectId };
 }
+
+/**
+ * Resets a client's password to one the admin chooses.
+ *
+ * Clients cannot reset their own: self-service needs a working mail sender, and
+ * on the shared Supabase sender that is capped at two emails an hour. Without
+ * this, a client who forgets their password can only be helped through the
+ * Supabase dashboard, which is not something to hand to a site owner.
+ *
+ * Staff accounts are deliberately excluded. An admin resetting another admin's
+ * — or a superadmin's — password would be a straightforward takeover of the
+ * account that controls the public site, and no support case needs it: those
+ * passwords are changed in the Supabase dashboard by whoever owns the project.
+ */
+export async function resetClientPassword(
+  userId: string,
+  password: string,
+): Promise<{ email: string }> {
+  if (password.length < MIN_PASSWORD) {
+    throw new Error(`Password must be at least ${MIN_PASSWORD} characters.`);
+  }
+
+  const { data: roles, error: rErr } = await supabaseAdmin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId);
+  if (rErr) throw new Error(`Could not check the account: ${rErr.message}`);
+  if (roles?.some((r) => r.role === "admin" || r.role === "superadmin")) {
+    throw new Error("Staff passwords are changed in Supabase, not here.");
+  }
+
+  const { data, error } = await supabaseAdmin.auth.admin.updateUserById(userId, { password });
+  if (error) throw new Error(error.message);
+  return { email: data.user?.email ?? "" };
+}

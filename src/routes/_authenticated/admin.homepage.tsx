@@ -273,7 +273,7 @@ function ContentEditor() {
             onClick={() => setTab(tb)}
             className={`rounded-md px-3 py-1.5 text-sm transition ${
               tab === tb
-                ? "bg-amber-brand text-background"
+                ? "bg-amber-brand-strong text-background"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
           >

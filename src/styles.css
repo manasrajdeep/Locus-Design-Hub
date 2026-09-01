@@ -79,6 +79,7 @@
   --color-ink: var(--ink);
   --color-concrete: var(--concrete);
   --color-amber-brand: var(--amber-brand);
+  --color-amber-brand-strong: var(--amber-brand-strong);
   --color-amber-brand-foreground: var(--amber-brand-foreground);
 }
 
@@ -106,6 +107,12 @@
 
   --amber-brand: oklch(0.68 0.15 55); /* burnt amber accent */
   --amber-brand-foreground: oklch(0.99 0.005 85);
+  /* The accent above is for decoration — rules, the wordmark dot, borders.
+     Off-white text on it measures 2.93:1, short of the 4.5:1 WCAG AA needs, so
+     anything with text sitting *on* the amber uses this darker shade instead
+     (4.56:1). Darkening the accent itself would have dulled the whole page to
+     fix a handful of buttons. */
+  --amber-brand-strong: oklch(0.57 0.15 55);
 
   --destructive: oklch(0.58 0.22 27);
   --destructive-foreground: oklch(0.99 0.005 85);
@@ -133,6 +140,9 @@
   --accent-foreground: oklch(0.97 0.005 85);
   --amber-brand: oklch(0.72 0.16 55);
   --amber-brand-foreground: oklch(0.14 0.012 60);
+  /* Dark mode puts dark ink on the amber and already measures 7.66:1, so the
+     accent doubles as the text-bearing surface here. */
+  --amber-brand-strong: oklch(0.72 0.16 55);
   --destructive: oklch(0.65 0.22 27);
   --destructive-foreground: oklch(0.97 0.005 85);
   --border: oklch(0.28 0.014 60);
@@ -218,7 +228,7 @@
   justify-content: center;
   gap: 0.5rem;
   padding: 0.875rem 1.75rem;
-  background: var(--color-amber-brand);
+  background: var(--color-amber-brand-strong);
   color: var(--color-amber-brand-foreground);
   font-weight: 600;
   font-size: 0.875rem;

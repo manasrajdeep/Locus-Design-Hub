@@ -31,6 +31,7 @@ test.skip(
 const stamp = Date.now();
 const clientEmail = `uitest-${stamp}@locusdesign.online`;
 const clientPassword = "reta-vusk-4839";
+const ANON_KEY = "sb_publishable_Q9q3PMtnnL9_4RaplFcrXg_MLUZc04-";
 
 async function signIn(page, email: string, password: string) {
   await page.goto(`${SITE}/auth`);
@@ -80,4 +81,37 @@ test("the provisioned client can sign in and sees only their project", async ({ 
   // provisioning did not attach one.
   await page.waitForURL(/\/portal/, { timeout: 45_000 });
   await expect(page.getByText("Gomti Nagar Villa").first()).toBeVisible({ timeout: 25_000 });
+});
+
+test("admin can reset a client's password, and the new one works", async ({ page }) => {
+  await signIn(page, ADMIN_EMAIL!, ADMIN_PASSWORD!);
+  await page.waitForURL(/\/admin/, { timeout: 30_000 });
+
+  // Pick the client provisioned by the first test.
+  await page.locator("select").selectOption({ label: `Ramesh Kumar · Gomti Nagar Villa` });
+  await page.getByRole("button", { name: "Reset password" }).click();
+
+  await expect(page.getByText("New password — shown once")).toBeVisible({ timeout: 30_000 });
+  const shown = await page.locator("p.font-mono").first().innerText();
+  expect(shown.length).toBeGreaterThan(9);
+
+  // The old password must now be dead, and the new one must work.
+  const ctx = page.context();
+  const oldTry = await ctx.request.post(
+    "https://abkuxwnkelygkajcypfw.supabase.co/auth/v1/token?grant_type=password",
+    {
+      headers: { apikey: ANON_KEY, "Content-Type": "application/json" },
+      data: { email: clientEmail, password: clientPassword },
+    },
+  );
+  expect(oldTry.status()).toBeGreaterThanOrEqual(400);
+
+  const newTry = await ctx.request.post(
+    "https://abkuxwnkelygkajcypfw.supabase.co/auth/v1/token?grant_type=password",
+    {
+      headers: { apikey: ANON_KEY, "Content-Type": "application/json" },
+      data: { email: clientEmail, password: shown.trim() },
+    },
+  );
+  expect(newTry.ok()).toBeTruthy();
 });

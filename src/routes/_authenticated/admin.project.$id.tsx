@@ -239,7 +239,7 @@ function AdminDetails({ project, onChange }: { project: Project; onChange: () =>
       <button
         onClick={save}
         disabled={busy}
-        className="mt-6 inline-flex items-center gap-2 rounded-md bg-amber-brand px-4 py-2.5 text-sm font-medium text-amber-brand-foreground transition hover:opacity-90 disabled:opacity-60"
+        className="mt-6 inline-flex items-center gap-2 rounded-md bg-amber-brand-strong px-4 py-2.5 text-sm font-medium text-amber-brand-foreground transition hover:opacity-90 disabled:opacity-60"
       >
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
         Save changes
@@ -296,7 +296,7 @@ function AdminMilestones({
               onClick={() => setCurrent(i)}
               className={`rounded-full px-3 py-1.5 text-xs transition ${
                 i === project.current_milestone
-                  ? "bg-amber-brand text-amber-brand-foreground"
+                  ? "bg-amber-brand-strong text-amber-brand-foreground"
                   : "bg-muted text-foreground hover:bg-accent"
               }`}
             >

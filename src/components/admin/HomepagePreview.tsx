@@ -62,7 +62,7 @@ export function HomepagePreview({
             <p className="mt-2 max-w-md text-xs text-white/80 md:text-sm">
               {heroSubtitle || "Hero subtitle"}
             </p>
-            <span className="mt-3 w-fit rounded-md bg-amber-brand px-3 py-1.5 text-xs font-medium text-background">
+            <span className="mt-3 w-fit rounded-md bg-amber-brand-strong px-3 py-1.5 text-xs font-medium text-background">
               Client Login
             </span>
           </div>

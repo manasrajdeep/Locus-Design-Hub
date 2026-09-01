@@ -14,7 +14,7 @@ import {
   KeyRound,
   Copy,
 } from "lucide-react";
-import { provisionClientFn } from "@/lib/provision-client.functions";
+import { provisionClientFn, resetClientPasswordFn } from "@/lib/provision-client.functions";
 import { toast } from "sonner";
 
 type Project = { id: string; name: string; address: string | null; customer_id: string };
@@ -47,6 +47,8 @@ export function AdminDashboard({ userId }: { userId: string; projectHrefPrefix?:
   const [nc, setNc] = useState({ email: "", fullName: "", projectName: "", password: "" });
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState<{ email: string; password: string } | null>(null);
+  const [resetting, setResetting] = useState(false);
+  const [resetDone, setResetDone] = useState<{ email: string; password: string } | null>(null);
 
   const loadProjects = async () => {
     const { data } = await supabase
@@ -112,15 +114,35 @@ export function AdminDashboard({ userId }: { userId: string; projectHrefPrefix?:
    * Generates a password that is readable over the phone: no ambiguous
    * characters, grouped so it can be dictated without spelling every letter.
    */
-  const suggestPassword = () => {
+  const randomPassword = () => {
     const alphabet = "abcdefghjkmnpqrstuvwxyz";
     const digits = "23456789";
     const pick = (set: string, n: number) =>
       Array.from({ length: n }, () => set[Math.floor(Math.random() * set.length)]).join("");
-    setNc((v) => ({
-      ...v,
-      password: `${pick(alphabet, 4)}-${pick(alphabet, 4)}-${pick(digits, 3)}`,
-    }));
+    return `${pick(alphabet, 4)}-${pick(alphabet, 4)}-${pick(digits, 3)}`;
+  };
+
+  const suggestPassword = () => setNc((v) => ({ ...v, password: randomPassword() }));
+
+  /**
+   * Resets a client's password to a freshly generated one.
+   *
+   * Clients cannot reset their own — that needs a mail sender this project does
+   * not have — so without this a forgotten password means a trip to the Supabase
+   * dashboard.
+   */
+  const resetPassword = async (customerId: string) => {
+    const password = randomPassword();
+    setResetting(true);
+    try {
+      const res = await resetClientPasswordFn({ data: { userId: customerId, password } });
+      setResetDone({ email: res.email, password });
+      toast.success("Password reset");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not reset the password");
+    } finally {
+      setResetting(false);
+    }
   };
 
   const createClient = async (e: React.FormEvent) => {
@@ -233,14 +255,50 @@ export function AdminDashboard({ userId }: { userId: string; projectHrefPrefix?:
                       </div>
                     )}
                   </div>
-                  <Link
-                    to="/admin/project/$id"
-                    params={{ id: selectedProject.id }}
-                    className="btn-primary text-xs"
-                  >
-                    Manage timeline & documents <ChevronRight className="h-4 w-4" />
-                  </Link>
+                  <div className="flex shrink-0 flex-col items-end gap-2">
+                    <Link
+                      to="/admin/project/$id"
+                      params={{ id: selectedProject.id }}
+                      className="btn-primary text-xs"
+                    >
+                      Manage timeline &amp; documents <ChevronRight className="h-4 w-4" />
+                    </Link>
+                    <button
+                      type="button"
+                      disabled={resetting}
+                      onClick={() => resetPassword(selectedProject.customer_id)}
+                      className="inline-flex items-center gap-1.5 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:opacity-50"
+                    >
+                      {resetting ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <KeyRound className="h-3 w-3" />
+                      )}
+                      Reset password
+                    </button>
+                  </div>
                 </div>
+
+                {resetDone &&
+                  resetDone.email === customersById[selectedProject.customer_id]?.email && (
+                    <div className="mt-4 rounded-md border border-amber-brand bg-background p-4">
+                      <p className="text-xs text-muted-foreground">
+                        New password — shown once. Send it to the client.
+                      </p>
+                      <p className="mt-1 font-mono text-sm text-foreground">{resetDone.password}</p>
+                      <button
+                        onClick={() => {
+                          void navigator.clipboard.writeText(
+                            `Locus Design portal\nhttps://locusdesign.online/auth\nEmail: ${resetDone.email}\nPassword: ${resetDone.password}`,
+                          );
+                          toast.success("Copied — paste it to your client");
+                        }}
+                        className="mt-3 inline-flex items-center gap-2 rounded-md bg-amber-brand-strong px-3 py-1.5 text-xs font-medium text-amber-brand-foreground"
+                      >
+                        <Copy className="h-3.5 w-3.5" /> Copy sign-in details
+                      </button>
+                    </div>
+                  )}
               </div>
             )}
           </>
@@ -279,7 +337,7 @@ export function AdminDashboard({ userId }: { userId: string; projectHrefPrefix?:
                   <button
                     disabled={busy}
                     onClick={() => provision(r)}
-                    className="inline-flex items-center gap-1 rounded-md bg-amber-brand text-amber-brand-foreground px-3 py-1.5 text-xs font-medium hover:opacity-90 disabled:opacity-50"
+                    className="inline-flex items-center gap-1 rounded-md bg-amber-brand-strong text-amber-brand-foreground px-3 py-1.5 text-xs font-medium hover:opacity-90 disabled:opacity-50"
                   >
                     <Check className="h-3.5 w-3.5" /> Accept &amp; create profile
                   </button>
@@ -330,7 +388,7 @@ export function AdminDashboard({ userId }: { userId: string; projectHrefPrefix?:
                   );
                   toast.success("Copied — paste it to your client");
                 }}
-                className="inline-flex items-center gap-2 rounded-md bg-amber-brand px-3 py-2 text-xs font-medium text-amber-brand-foreground"
+                className="inline-flex items-center gap-2 rounded-md bg-amber-brand-strong px-3 py-2 text-xs font-medium text-amber-brand-foreground"
               >
                 <Copy className="h-3.5 w-3.5" /> Copy sign-in details
               </button>
@@ -388,7 +446,7 @@ export function AdminDashboard({ userId }: { userId: string; projectHrefPrefix?:
             <button
               type="submit"
               disabled={creating}
-              className="inline-flex items-center justify-center gap-2 rounded-md bg-amber-brand px-4 py-2.5 text-sm font-medium text-amber-brand-foreground transition hover:opacity-90 disabled:opacity-60 sm:col-span-2"
+              className="inline-flex items-center justify-center gap-2 rounded-md bg-amber-brand-strong px-4 py-2.5 text-sm font-medium text-amber-brand-foreground transition hover:opacity-90 disabled:opacity-60 sm:col-span-2"
             >
               {creating ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -406,7 +464,7 @@ export function AdminDashboard({ userId }: { userId: string; projectHrefPrefix?:
         <h2 className="mb-4 flex items-center gap-2 text-sm font-medium uppercase tracking-wider text-foreground">
           <Mail className="h-4 w-4" /> Website enquiries
           {messages && messages.length > 0 && (
-            <span className="rounded-full bg-amber-brand px-2 py-0.5 text-xs text-amber-brand-foreground">
+            <span className="rounded-full bg-amber-brand-strong px-2 py-0.5 text-xs text-amber-brand-foreground">
               {messages.length}
             </span>
           )}

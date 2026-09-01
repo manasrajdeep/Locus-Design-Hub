@@ -319,7 +319,7 @@ function Portal() {
         <section className="rounded-xl border border-border bg-card p-5 md:p-7">
           <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-amber-brand text-lg font-semibold text-amber-brand-foreground">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-amber-brand-strong text-lg font-semibold text-amber-brand-foreground">
                 {initials}
               </div>
               <div className="min-w-0">
@@ -977,7 +977,7 @@ export function ChatPanel({ projectId, userId }: { projectId: string; userId: st
           return (
             <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
               <div
-                className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${mine ? "rounded-br-sm bg-amber-brand text-amber-brand-foreground" : "rounded-bl-sm bg-muted text-foreground"}`}
+                className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${mine ? "rounded-br-sm bg-amber-brand-strong text-amber-brand-foreground" : "rounded-bl-sm bg-muted text-foreground"}`}
               >
                 <div>{m.body}</div>
                 <div
@@ -1000,7 +1000,7 @@ export function ChatPanel({ projectId, userId }: { projectId: string; userId: st
         <button
           type="submit"
           disabled={sending || !text.trim()}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-amber-brand text-amber-brand-foreground disabled:opacity-50"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-amber-brand-strong text-amber-brand-foreground disabled:opacity-50"
         >
           {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </button>

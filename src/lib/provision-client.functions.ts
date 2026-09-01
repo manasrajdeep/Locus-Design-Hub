@@ -26,3 +26,25 @@ export const provisionClientFn = createServerFn({ method: "POST" })
     const { provisionClient } = await import("./provision-client.server");
     return provisionClient(data);
   });
+
+/**
+ * Staff-only: reset a client's password. Same shape as provisioning — the
+ * caller's role is proved through their own session before the service-role
+ * client is touched.
+ */
+export const resetClientPasswordFn = createServerFn({ method: "POST" })
+  .inputValidator((data: { userId: string; password: string }) => data)
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }): Promise<{ email: string }> => {
+    const { data: roles, error } = await context.supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId);
+    if (error) throw new Error(`Could not verify role: ${error.message}`);
+    if (!roles?.some((r) => r.role === "admin" || r.role === "superadmin")) {
+      throw new Response("Forbidden", { status: 403 });
+    }
+
+    const { resetClientPassword } = await import("./provision-client.server");
+    return resetClientPassword(data.userId, data.password);
+  });
