@@ -45,3 +45,6 @@ playwright-report
 
 # Lighthouse / CWV reports
 lighthouse-report
+
+# Generated handover document (rebuild from the session, not source)
+Locus-Design-Admin-Guide.pdf
