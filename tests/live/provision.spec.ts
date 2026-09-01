@@ -33,7 +33,7 @@ const clientEmail = `uitest-${stamp}@locusdesign.online`;
 const clientPassword = "reta-vusk-4839";
 
 async function signIn(page, email: string, password: string) {
-  await page.goto(`${SITE}/auth?staff=true`);
+  await page.goto(`${SITE}/auth`);
   // Wait for hydration: the form renders server-side but its submit handler only
   // exists once React has taken over, so an early click posts nothing.
   await page.waitForLoadState("networkidle");
@@ -63,6 +63,15 @@ test("admin provisions a client, and that client can sign in", async ({ page }) 
   await expect(page.locator("option", { hasText: "Gomti Nagar Villa" }).first()).toHaveCount(1, {
     timeout: 20_000,
   });
+});
+
+test("the plain /auth page offers a password field, not just a link", async ({ page }) => {
+  await page.goto(`${SITE}/auth`);
+  await page.waitForLoadState("networkidle");
+  // The regression this guards: clients were shown only the magic-link form, so
+  // the credentials an admin had just handed them could not be entered at all.
+  await expect(page.locator("#password")).toBeVisible();
+  await expect(page.locator("#email")).toBeVisible();
 });
 
 test("the provisioned client can sign in and sees only their project", async ({ page }) => {

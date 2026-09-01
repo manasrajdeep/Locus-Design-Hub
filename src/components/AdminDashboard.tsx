@@ -304,7 +304,7 @@ export function AdminDashboard({ userId }: { userId: string; projectHrefPrefix?:
         <p className="mb-4 text-xs text-muted-foreground">
           Creates the account with a password you choose and hand over yourself — no email is sent,
           so this is not affected by the sign-in email limit. They sign in at{" "}
-          <span className="font-mono">/auth?staff=1</span> with these details.
+          <span className="font-mono">locusdesign.online/auth</span> with these details.
         </p>
 
         {created ? (
@@ -326,7 +326,7 @@ export function AdminDashboard({ userId }: { userId: string; projectHrefPrefix?:
               <button
                 onClick={() => {
                   void navigator.clipboard.writeText(
-                    `Locus Design portal\nhttps://locusdesign.online/auth?staff=1\nEmail: ${created.email}\nPassword: ${created.password}`,
+                    `Locus Design portal\nhttps://locusdesign.online/auth\nEmail: ${created.email}\nPassword: ${created.password}`,
                   );
                   toast.success("Copied — paste it to your client");
                 }}

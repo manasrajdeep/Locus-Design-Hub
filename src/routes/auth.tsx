@@ -7,14 +7,18 @@ import { toast } from "sonner";
 import { Loader2, Mail, MailCheck, KeyRound } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
-  validateSearch: (s: Record<string, unknown>): { next?: string; staff?: boolean } => ({
-    // Staff sign in with a password at /auth?staff=1. Clients get the link form
-    // only — a password box on the client page invites them to guess at one
-    // they were never issued, and support questions follow.
-    // The router's search parser coerces `?staff=1` to the number 1, so match on
-    // every shape rather than one — a miss here silently strips the param and
-    // bounces staff back to the client form.
-    staff: s.staff === 1 || s.staff === "1" || s.staff === true || s.staff === "true" || undefined,
+  validateSearch: (s: Record<string, unknown>): { next?: string; link?: boolean } => ({
+    // Email and password is the way in for everyone. Staff were split onto
+    // /auth?staff=1 back when clients signed in with a magic link; clients are
+    // now given a password by an admin, so hiding the password field from them
+    // left them unable to use the credentials they had just been handed.
+    //
+    // The link flow is kept at /auth?link=1 for when a mail sender is
+    // configured — on the shared Supabase sender it is capped at two emails an
+    // hour, so offering it to clients by default mostly produces failures.
+    // The router's search parser coerces `?link=1` to the number 1, so match on
+    // every shape rather than one.
+    link: s.link === 1 || s.link === "1" || s.link === true || s.link === "true" || undefined,
     // Same-origin relative path to return to after sign-in (used by the OAuth consent flow).
     next:
       typeof s.next === "string" && s.next.startsWith("/") && !s.next.startsWith("//")
@@ -99,11 +103,11 @@ function friendlyAuthError(message: string): string {
 
 function AuthPage() {
   const navigate = useNavigate();
-  const { next, staff } = Route.useSearch();
+  const { next, link } = Route.useSearch();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  // Driven by the URL, not a toggle: clients never see the password form.
-  const usePassword = staff === true;
+  // Password unless the link flow is explicitly requested.
+  const usePassword = link !== true;
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -204,8 +208,8 @@ function AuthPage() {
             {sent
               ? "Check your inbox — the link signs you straight in."
               : usePassword
-                ? "Sign in with your email and password."
-                : "Enter your email and we'll send you a link to access your project timeline, documents, and team chat."}
+                ? "Sign in with the email and password your project team gave you."
+                : "Enter your email and we'll send you a sign-in link."}
           </p>
 
           {sent ? (

@@ -47,8 +47,16 @@ const CACHEABLE_PATHS = new Set(["/", "/robots.txt", "/sitemap.xml"]);
  * The Workers runtime adds a `default` cache that the standard DOM
  * `CacheStorage` type does not declare, so it is narrowed here rather than
  * pulling in @cloudflare/workers-types for one property.
+ *
+ * `caches` is a Workers global and does not exist in Node, which is what the
+ * Vite dev server runs on — referencing it unguarded threw
+ * `ReferenceError: caches is not defined` on every request and took local
+ * development down while production, which has the global, was fine.
+ * Returning undefined there simply means no caching in dev, which is what you
+ * want anyway.
  */
 function edgeCache(): Cache | undefined {
+  if (typeof caches === "undefined") return undefined;
   return (caches as CacheStorage & { default?: Cache }).default;
 }
 
