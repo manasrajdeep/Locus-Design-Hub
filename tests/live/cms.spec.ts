@@ -88,6 +88,38 @@ test("the published change can be reverted through the CMS", async ({ page }) =>
   expect(await liveHeroTitle(page)).toBe(ORIGINAL);
 });
 
+test("labels are bound to their inputs", async ({ page }) => {
+  await signInAdmin(page);
+  await page.goto("/admin/homepage");
+  await expect(heroInput(page)).toBeVisible({ timeout: 30_000 });
+
+  // Clicking the label text must focus the field it names.
+  await page.locator('label:text-is("Hero title")').click();
+  await expect(heroInput(page)).toBeFocused();
+});
+
+test("typing during a publish is not discarded", async ({ page }) => {
+  await signInAdmin(page);
+  await page.goto("/admin/homepage");
+  await expect(heroInput(page)).toHaveValue(ORIGINAL, { timeout: 30_000 });
+
+  // Make a change and publish it, then type again the instant the request goes
+  // out. The publish snapshot used to be written back over the editor once the
+  // call returned, silently dropping whatever was typed in that window.
+  const during = `${ORIGINAL} `;
+  await heroInput(page).fill(ORIGINAL);
+  await expect(page.getByTestId("publish")).toBeDisabled({ timeout: 20_000 });
+  await heroInput(page).fill(PROBE);
+  await expect(page.getByTestId("publish")).toBeEnabled({ timeout: 20_000 });
+  await page.waitForTimeout(1500);
+  await page.getByTestId("publish").click();
+  await heroInput(page).fill(during);
+
+  // The field keeps what was typed rather than reverting to the published snapshot.
+  await page.waitForTimeout(6000);
+  await expect(heroInput(page)).toHaveValue(during);
+});
+
 test("the CMS is not reachable without signing in", async ({ page }) => {
   await page.goto("/admin/homepage");
   await expect(page.getByRole("heading", { name: "Public homepage" })).toHaveCount(0);

@@ -1,5 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  cloneElement,
+  isValidElement,
+  type ReactElement,
+} from "react";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -164,10 +174,15 @@ function ContentEditor() {
     );
 
   const publish = async (draft: Content = c, note = "Published") => {
+    // A rollback publishes content the editor is not currently showing, so that
+    // has to be loaded in. Publishing the editor's own state must not: the
+    // snapshot is taken when Publish is pressed and the call is awaited, so
+    // writing it back afterwards discarded anything typed during the round trip.
+    const isRollback = draft !== c;
     setPublishing(true);
     try {
       const at = await publishDraft(id, draft, note);
-      setC(draft);
+      if (isRollback) setC(draft);
       persistedDraft.current = JSON.stringify(draft);
       setPublishedJson(JSON.stringify(draft));
       setPublishedAt(at);
@@ -1307,11 +1322,25 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+/**
+ * A labelled form control.
+ *
+ * The label is bound to the input with htmlFor/id. Without that a screen reader
+ * announces the control unlabelled, and clicking the text does not focus the
+ * field — the label was decorative rather than functional. The id is generated
+ * and injected into the child, so call sites stay as they are.
+ */
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  const id = useId();
+  const control = isValidElement(children)
+    ? cloneElement(children as ReactElement<{ id?: string }>, { id })
+    : children;
   return (
     <div>
-      <label className="text-xs font-medium tracking-wide text-foreground">{label}</label>
-      <div className="mt-1">{children}</div>
+      <label htmlFor={id} className="text-xs font-medium tracking-wide text-foreground">
+        {label}
+      </label>
+      <div className="mt-1">{control}</div>
     </div>
   );
 }
