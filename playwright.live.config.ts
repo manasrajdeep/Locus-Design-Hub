@@ -1,4 +1,15 @@
 import { defineConfig, devices } from "@playwright/test";
+import { readFileSync } from "node:fs";
+
+// Load .env (gitignored) so LIVE_ADMIN_* never has to live in the repo.
+try {
+  for (const line of readFileSync(".env", "utf8").split("\n")) {
+    const m = /^([A-Z_]+)=(.*)$/.exec(line.trim());
+    if (m && !process.env[m[1]!]) process.env[m[1]!] = m[2]!.replace(/^"|"$/g, "");
+  }
+} catch {
+  /* no .env — the specs skip themselves */
+}
 
 /**
  * Smoke tests that run against the deployed site.
